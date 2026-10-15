@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0c1021">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Lyrica Studio — MV文字演出</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="branding"><div class="mark">L<span>•</span></div><div><strong>LYRICA <em>STUDIO</em></strong><small>MV TYPOGRAPHY WORKSPACE <i>v0.1.1</i></small></div></div>
+      <div class="top-actions">
+        <label class="button button-secondary" for="videoInput">▣ <span>動画を読み込む</span></label>
+        <button id="saveProject" class="button button-secondary" title="編集内容をJSONに保存">↧ <span>プロジェクト保存</span></button>
+        <label class="button button-secondary" for="projectInput">↥ <span>開く</span></label>
+        <button id="exportVideo" class="button button-primary">✧ <span>動画を書き出す</span></button>
+      </div>
+    </header>
+    <div class="workspace">
+      <aside class="sidebar panel">
+        <div class="panel-head"><div><span class="eyebrow">LAYERS</span><h2>文字レイヤー</h2></div><button class="iconbutton" id="addTextMini" title="文字を追加">＋</button></div>
+        <div class="intro-card"><span class="intro-label">HOW TO EDIT</span><p>文字は何個でも重ねられます。再生位置で追加し、タイムラインで表示時間を調節。</p></div>
+        <div class="layer-actions"><button id="addText" class="button button-accent">＋ 文字を追加</button><button id="bulkOpen" class="button button-quiet">≡ 歌詞を一括追加</button></div>
+        <div id="layerList" class="layer-list"></div>
+        <div class="sidebar-foot"><span class="status-dot"></span><span>データはこの端末内で処理します</span></div>
+      </aside>
+      <main class="center">
+        <section class="viewer panel">
+          <div class="section-bar"><div class="section-title"><span class="eyebrow">PREVIEW</span><strong id="videoName">動画未選択 · デモプレビュー</strong></div><div class="capsules"><span id="resolutionBadge">1280 × 720</span><span id="formatBadge">30 FPS</span></div></div>
+          <div id="stage" class="stage"><canvas id="preview" width="1280" height="720" aria-label="MVプレビュー。文字をドラッグして移動できます"></canvas><div class="stage-hint" id="stageHint">文字を指・マウスでドラッグして移動できます</div></div>
+          <video id="sourceVideo" playsinline webkit-playsinline preload="auto"></video>
+          <div class="transport"><button id="backStep" class="transport-icon" title="0.1秒戻る">↶</button><button id="playBtn" class="play-button" title="再生・一時停止">▶</button><button id="forwardStep" class="transport-icon" title="0.1秒進む">↷</button><span class="timecurrent" id="timeCurrent">00:00.00</span><input id="seek" type="range" min="0" max="30" step="0.01" value="0" aria-label="再生位置"><span class="timeduration" id="timeDuration">00:30.00</span><button id="toStart" class="transport-icon" title="先頭に戻る">⇤</button></div>
+        </section>
+        <section class="timeline panel">
+          <div class="section-bar timeline-bar"><div class="section-title"><span class="eyebrow">SEQUENCER</span><strong>文字の表示タイミング</strong></div><div class="timeline-actions"><button class="button button-tiny" id="undo" title="元に戻す">↶</button><button class="button button-tiny" id="redo" title="やり直す">↷</button><button class="button button-tiny" id="zoomOut">－</button><span id="zoomLabel">60px/s</span><button class="button button-tiny" id="zoomIn">＋</button></div></div>
+          <div class="timeline-help">ドラッグ：位置変更 ／ 左右の端：長さ変更 ／ 上部の目盛り：再生位置を移動</div>
+          <div class="timeline-scroll" id="timelineScroll"><div id="timelineInner" class="timeline-inner"><div id="ruler" class="ruler"></div><div id="tracks" class="tracks"></div><div id="playhead" class="playhead"><div class="playhead-cap"></div></div></div></div>
+        </section>
+      </main>
+      <aside class="inspector panel">
+        <div class="panel-head"><div><span class="eyebrow">INSPECTOR</span><h2>文字の演出</h2></div><button class="iconbutton" id="duplicate" title="選択した文字を複製">⧉</button></div>
+        <div class="inspector-body" id="inspectorBody">
+          <div id="noSelection" class="no-selection">✧<p>文字を選択すると<br>書体・色・動きなどを編集できます。</p></div>
+          <div id="settings" hidden>
+            <div class="field-group"><label for="textValue">文字・歌詞</label><textarea id="textValue" rows="3" placeholder="歌詞を入力"></textarea></div>
+            <div class="field-group"><label for="fontValue">フォント</label><select id="fontValue"><option value="gothic">角ゴシック / クリーン</option><option value="mincho">明朝 / 映画的</option><option value="serif">欧文セリフ / CLASSIC</option><option value="sans">欧文サンセリフ / MODERN</option><option value="mono">モノスペース / DIGITAL</option><option value="rounded">丸ゴシック / SOFT</option><option value="heavy">極太ゴシック / IMPACT</option><option value="hand">手書き風 / HAND</option></select><label class="sub-action" for="fontInput">＋ カスタムフォントを読み込む（TTF / OTF / WOFF）</label></div>
+            <div class="field-grid"><div class="field-group"><label for="sizeValue">サイズ / px相当</label><input id="sizeValue" type="number" min="8" max="360" step="1"></div><div class="field-group"><label for="spacingValue">文字間隔</label><input id="spacingValue" type="number" min="-15" max="80" step="1"></div></div>
+            <div class="field-grid"><div class="field-group"><label for="colorValue">文字色</label><input id="colorValue" type="color"></div><div class="field-group"><label for="strokeColor">縁取り色</label><input id="strokeColor" type="color"></div></div>
+            <div class="field-grid"><div class="field-group"><label for="strokeValue">縁取り太さ</label><input id="strokeValue" type="number" min="0" max="24" step="1"></div><div class="field-group"><label for="shadowValue">影の強さ</label><input id="shadowValue" type="number" min="0" max="60" step="1"></div></div>
+            <div class="field-group"><label for="alignValue">文字揃え</label><select id="alignValue"><option value="center">中央揃え</option><option value="left">左揃え</option><option value="right">右揃え</option></select></div>
+            <div class="divider"></div><h3>TRANSFORM <span>位置・角度</span></h3>
+            <div class="field-grid"><div class="field-group"><label for="xValue">X / 横位置 %</label><input id="xValue" type="number" min="-100" max="200" step="0.5"></div><div class="field-group"><label for="yValue">Y / 縦位置 %</label><input id="yValue" type="number" min="-100" max="200" step="0.5"></div></div>
+            <div class="field-grid"><div class="field-group"><label for="rotateValue">回転 / °</label><input id="rotateValue" type="number" min="-1080" max="1080" step="1"></div><div class="field-group"><label for="scaleValue">拡大率 / %</label><input id="scaleValue" type="number" min="5" max="1000" step="1"></div></div>
+            <div class="field-group"><label for="opacityValue">不透明度 <strong id="opacityLabel">100%</strong></label><input id="opacityValue" type="range" min="0" max="100" step="1"></div>
+            <div class="divider"></div><h3>MOTION <span>登場・退場</span></h3>
+            <div class="field-group"><label for="animationValue">動きの種類</label><select id="animationValue"><option value="fade">フェード / ふわっと表示</option><option value="none">固定 / アニメーションなし</option><option value="left">左からスライド</option><option value="right">右からスライド</option><option value="up">下から浮き上がる</option><option value="down">上から降りる</option><option value="pop">拡大しながら登場</option><option value="spin">回りながら登場</option><option value="type">タイプライター（1文字ずつ）</option><option value="wipe">ワイプ（徐々に見える）</option><option value="float">ふわふわ漂う</option><option value="scroll">右から左へ流れ続ける</option><option value="scrollUp">下から上へ流れ続ける</option><option value="scrollDown">上から下へ流れ続ける</option></select><p class="help">スクロールは表示開始から終了まで画面を通り抜けます。表示時間を長くするとゆっくり流れます。</p></div>
+            <div class="field-grid"><div class="field-group"><label for="inValue">登場時間 / 秒</label><input id="inValue" type="number" min="0" max="120" step="0.05"></div><div class="field-group"><label for="outValue">退場時間 / 秒</label><input id="outValue" type="number" min="0" max="120" step="0.05"></div></div>
+            <div class="divider"></div><h3>TIME <span>表示する区間</span></h3>
+            <div class="field-grid"><div class="field-group"><label for="startValue">表示開始 / 秒</label><input id="startValue" type="number" min="0" step="0.01"></div><div class="field-group"><label for="endValue">表示終了 / 秒</label><input id="endValue" type="number" min="0" step="0.01"></div></div>
+            <div class="mini-actions"><button id="startHere" class="button button-tiny">◀ 現在位置で開始</button><button id="endHere" class="button button-tiny">現在位置で終了 ▶</button></div>
+            <div class="divider"></div><h3>KEYFRAMES <span>細かな動きの指定</span></h3><p class="help">再生位置を移動し、位置・角度・拡大率・不透明度を設定後「追加/更新」。複数指定すると、その間を滑らかに移動します。</p>
+            <button id="addKeyframe" class="button button-accent full">◇ この時刻にキーフレームを追加/更新</button><div id="keyframeList" class="keyframes"></div>
+            <div class="divider"></div><div class="row-delete"><button id="deleteSelected" class="button button-danger">▤ この文字を削除</button></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <footer class="footer"><span id="status">準備完了 · 動画を取り込むか、デモ文字を編集してください。</span><span>オフライン編集対応 · 動画データはアップロードしません</span></footer>
+  </div>
+  <input type="file" id="videoInput" accept="video/*" hidden>
+  <input type="file" id="projectInput" accept=".json,application/json" hidden>
+  <input type="file" id="fontInput" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf" hidden>
+  <div id="bulkModal" class="modal-backdrop" hidden><div class="modal"><div class="modal-top"><div><span class="eyebrow">LYRICS INPUT</span><h2>歌詞を一括で配置</h2></div><button class="iconbutton" id="bulkClose">×</button></div><p>1行につき1つの文字レイヤーを作成。改行すると次の表示区間になります。あとから自由に変更できます。</p><textarea id="bulkText" rows="9" placeholder="願いが夜を越えて\nまだ見ぬ朝の方へ\nI'll find my way..."></textarea><div class="field-grid"><div class="field-group"><label>1行の表示時間（秒）</label><input id="bulkDuration" type="number" min="0.2" step="0.1" value="3"></div><div class="field-group"><label>行間の空白（秒）</label><input id="bulkGap" type="number" min="0" step="0.1" value="0.2"></div></div><div class="modal-actions"><button class="button button-secondary" id="bulkCancel">キャンセル</button><button class="button button-primary" id="bulkInsert">レイヤーを作成</button></div></div></div>
+  <div id="exportModal" class="modal-backdrop" hidden><div class="modal export-dialog"><div class="modal-top"><div><span class="eyebrow">RENDER VIDEO</span><h2>動画を書き出し中</h2></div></div><p id="exportText">動画と音声を合成しています。画面を閉じず、スリープしないでください。</p><div class="progress"><div id="exportProgress" style="width:0%"></div></div><strong id="exportPercent">0%</strong><div class="modal-actions"><button class="button button-primary" id="saveExport" hidden>↧ 完成動画を保存</button><button class="button button-secondary" id="cancelExport">中止</button></div></div></div>
+  <script src="app.js" defer></script>
+</body>
+</html>
