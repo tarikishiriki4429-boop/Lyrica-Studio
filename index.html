@@ -14,7 +14,7 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <div class="branding"><div class="mark">L<span>•</span></div><div><strong>LYRICA <em>STUDIO</em></strong><small>MV TYPOGRAPHY WORKSPACE <i>v0.1.1</i></small></div></div>
+      <div class="branding"><div class="mark">L<span>•</span></div><div><strong>LYRICA <em>STUDIO</em></strong><small>MV TYPOGRAPHY WORKSPACE <i>v0.2.0</i></small></div></div>
       <div class="top-actions">
         <label class="button button-secondary" for="videoInput">▣ <span>動画を読み込む</span></label>
         <button id="saveProject" class="button button-secondary" title="編集内容をJSONに保存">↧ <span>プロジェクト保存</span></button>
@@ -50,7 +50,26 @@
           <div id="settings" hidden>
             <div class="field-group"><label for="textValue">文字・歌詞</label><textarea id="textValue" rows="3" placeholder="歌詞を入力"></textarea></div>
             <div class="field-group"><label for="fontValue">フォント</label><select id="fontValue"><option value="gothic">角ゴシック / クリーン</option><option value="mincho">明朝 / 映画的</option><option value="serif">欧文セリフ / CLASSIC</option><option value="sans">欧文サンセリフ / MODERN</option><option value="mono">モノスペース / DIGITAL</option><option value="rounded">丸ゴシック / SOFT</option><option value="heavy">極太ゴシック / IMPACT</option><option value="hand">手書き風 / HAND</option></select><label class="sub-action" for="fontInput">＋ カスタムフォントを読み込む（TTF / OTF / WOFF）</label></div>
-            <div class="field-grid"><div class="field-group"><label for="sizeValue">サイズ / px相当</label><input id="sizeValue" type="number" min="8" max="360" step="1"></div><div class="field-group"><label for="spacingValue">文字間隔</label><input id="spacingValue" type="number" min="-15" max="80" step="1"></div></div>
+            
+            <div class="divider"></div><h3>TYPE LAB <span>文字の質感・造形</span></h3>
+            <div class="type-intro">各文字に異なるかすれや傷を生成。映像の書き出し時にも同じ質感を再現します。</div>
+            <div class="type-presets" role="group" aria-label="文字の質感">
+              <button type="button" class="type-preset" data-texture="standard"><span class="type-glyph standard-glyph">Aa</span><strong>STANDARD</strong><small>通常の文字</small></button>
+              <button type="button" class="type-preset" data-texture="shatter"><span class="type-glyph shatter-glyph">破</span><strong>SHATTER</strong><small>ひび・欠け・断裂</small></button>
+              <button type="button" class="type-preset" data-texture="graphite"><span class="type-glyph graphite-glyph">鉛</span><strong>GRAPHITE</strong><small>鉛筆・濃淡・こすれ</small></button>
+            </div>
+            <div id="textureControls" class="texture-controls" hidden>
+              <div class="field-group fx-slider"><label for="fxIntensity"><span id="fxIntensityName">質感の強さ</span><strong id="fxIntensityLabel">75</strong></label><input id="fxIntensity" type="range" min="0" max="100" step="1"></div>
+              <div class="field-group fx-slider"><label for="fxGrain"><span id="fxGrainName">粒子量</span><strong id="fxGrainLabel">45</strong></label><input id="fxGrain" type="range" min="0" max="100" step="1"></div>
+              <div class="field-group fx-slider"><label for="fxIrregularity"><span id="fxIrregularityName">揺らぎ</span><strong id="fxIrregularityLabel">35</strong></label><input id="fxIrregularity" type="range" min="0" max="100" step="1"></div>
+              <div class="field-group fx-slider"><label for="fxDetail"><span id="fxDetailName">細部</span><strong id="fxDetailLabel">60</strong></label><input id="fxDetail" type="range" min="0" max="100" step="1"></div>
+              <button type="button" class="button button-tiny fx-reseed" id="fxReseed">⤨ 傷や筆圧のパターンを作り直す</button>
+            </div>
+            <div class="field-group"><label for="fxReveal">文字の現れ方</label><select id="fxReveal"><option value="none">通常（移動・フェードを維持）</option><option value="write">左から書き現れる</option><option value="stagger">一文字ずつ現れる</option><option value="flicker">断続的に瞬く</option></select><p class="help">「登場時間」の秒数を使用。既存の移動・スクロールと重ねられます。</p></div>
+            <div class="field-group"><label for="fxVanish">文字の消え方</label><select id="fxVanish"><option value="none">通常（フェード）</option><option value="erase">左から消される</option><option value="scatter">破片のように散って消える</option></select><p class="help">「退場時間」の秒数を使用。スクロール演出も維持されます。</p></div>
+            <div class="type-warning">※ SHATTER / GRAPHITE は独自生成の文字質感です。OTF/TTFファイルの新書体ではなく、漢字や英字に重ねるMV専用の描画処理です。</div>
+            <div class="divider"></div>
+<div class="field-grid"><div class="field-group"><label for="sizeValue">サイズ / px相当</label><input id="sizeValue" type="number" min="8" max="360" step="1"></div><div class="field-group"><label for="spacingValue">文字間隔</label><input id="spacingValue" type="number" min="-15" max="80" step="1"></div></div>
             <div class="field-grid"><div class="field-group"><label for="colorValue">文字色</label><input id="colorValue" type="color"></div><div class="field-group"><label for="strokeColor">縁取り色</label><input id="strokeColor" type="color"></div></div>
             <div class="field-grid"><div class="field-group"><label for="strokeValue">縁取り太さ</label><input id="strokeValue" type="number" min="0" max="24" step="1"></div><div class="field-group"><label for="shadowValue">影の強さ</label><input id="shadowValue" type="number" min="0" max="60" step="1"></div></div>
             <div class="field-group"><label for="alignValue">文字揃え</label><select id="alignValue"><option value="center">中央揃え</option><option value="left">左揃え</option><option value="right">右揃え</option></select></div>
@@ -78,6 +97,7 @@
   <input type="file" id="fontInput" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf" hidden>
   <div id="bulkModal" class="modal-backdrop" hidden><div class="modal"><div class="modal-top"><div><span class="eyebrow">LYRICS INPUT</span><h2>歌詞を一括で配置</h2></div><button class="iconbutton" id="bulkClose">×</button></div><p>1行につき1つの文字レイヤーを作成。改行すると次の表示区間になります。あとから自由に変更できます。</p><textarea id="bulkText" rows="9" placeholder="願いが夜を越えて\nまだ見ぬ朝の方へ\nI'll find my way..."></textarea><div class="field-grid"><div class="field-group"><label>1行の表示時間（秒）</label><input id="bulkDuration" type="number" min="0.2" step="0.1" value="3"></div><div class="field-group"><label>行間の空白（秒）</label><input id="bulkGap" type="number" min="0" step="0.1" value="0.2"></div></div><div class="modal-actions"><button class="button button-secondary" id="bulkCancel">キャンセル</button><button class="button button-primary" id="bulkInsert">レイヤーを作成</button></div></div></div>
   <div id="exportModal" class="modal-backdrop" hidden><div class="modal export-dialog"><div class="modal-top"><div><span class="eyebrow">RENDER VIDEO</span><h2>動画を書き出し中</h2></div></div><p id="exportText">動画と音声を合成しています。画面を閉じず、スリープしないでください。</p><div class="progress"><div id="exportProgress" style="width:0%"></div></div><strong id="exportPercent">0%</strong><div class="modal-actions"><button class="button button-primary" id="saveExport" hidden>↧ 完成動画を保存</button><button class="button button-secondary" id="cancelExport">中止</button></div></div></div>
+  <script src="typefx.js" defer></script>
   <script src="app.js" defer></script>
 </body>
 </html>

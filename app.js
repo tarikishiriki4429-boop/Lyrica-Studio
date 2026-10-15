@@ -25,7 +25,7 @@ function stash(snapshot){state.history.push(snapshot||cloneItems());if(state.his
 function updateUndo(){$('undo').disabled=!state.history.length;$('redo').disabled=!state.future.length;}
 function undo(){if(!state.history.length)return;state.future.push(cloneItems());state.items=state.history.pop();if(!state.items.some(x=>x.id===state.selected))state.selected=state.items.at(-1)?.id||null;refresh();updateUndo();}
 function redo(){if(!state.future.length)return;state.history.push(cloneItems());state.items=state.future.pop();if(!state.items.some(x=>x.id===state.selected))state.selected=state.items.at(-1)?.id||null;refresh();updateUndo();}
-function newItem(text='あなたの歌詞をここに',start=state.time,duration=3){start=clamp(start,0,Math.max(0,state.duration-.2));duration=Math.min(duration,Math.max(.2,state.duration-start));return {id:uid(),text,start:round(start),end:round(start+duration),x:.5,y:.51,size:72,spacing:0,color:'#ffffff',strokeColor:'#11102b',stroke:0,shadow:6,font:'gothic',align:'center',rotate:0,scale:1,opacity:1,animation:'fade',inDur:.5,outDur:.35,keyframes:[]};}
+function newItem(text='あなたの歌詞をここに',start=state.time,duration=3){start=clamp(start,0,Math.max(0,state.duration-.2));duration=Math.min(duration,Math.max(.2,state.duration-start));return {id:uid(),text,start:round(start),end:round(start+duration),x:.5,y:.51,size:72,spacing:0,color:'#ffffff',strokeColor:'#11102b',stroke:0,shadow:6,font:'gothic',align:'center',rotate:0,scale:1,opacity:1,animation:'fade',inDur:.5,outDur:.35,keyframes:[],fx:{style:'standard',intensity:70,grain:54,irregularity:38,detail:62,seed:1,reveal:'none',vanish:'none'}};}
 function selected(){return state.items.find(x=>x.id===state.selected)||null;}
 function select(id){state.selected=id;renderLayers();renderTimeline();renderInspector();draw();}
 function refresh(){renderLayers();renderTimeline();renderInspector();updateTransport();draw();}
@@ -84,7 +84,7 @@ function paintItem(item,time,{editing=false}={}){
    break;
  }
  }
- if(item.outDur>0)alpha*=clamp((item.end-time)/item.outDur,0,1);
+ if(item.outDur>0 && item.fx?.vanish!=='erase' && item.fx?.vanish!=='scatter')alpha*=clamp((item.end-time)/item.outDur,0,1);
  alpha=clamp(alpha,0,1);if(alpha<=.001)return null;
  const unit=canvas.height/1080,fontsize=item.size*unit,spacing=item.spacing*unit,lines=item.text.split('\n'),lh=fontsize*1.28;
  let paintLines=lines;
@@ -100,8 +100,23 @@ function paintItem(item,time,{editing=false}={}){
  ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=item.shadow*unit;
  paintLines.forEach((line,i)=>{
    let baseY=(i-(lines.length-1)/2)*lh;
-   if(item.stroke>0){ctx.lineWidth=item.stroke*unit;ctx.strokeStyle=item.strokeColor;printSpaced(ctx,line,0,baseY,spacing,'stroke');}
-   ctx.fillStyle=item.color;printSpaced(ctx,line,0,baseY,spacing,'fill');
+   const progressIn=item.inDur>0?clamp((time-item.start)/item.inDur,0,1):1;
+   const progressOut=item.outDur>0?clamp((time-(item.end-item.outDur))/item.outDur,0,1):0;
+   const hasStyled=window.LyricaTypeFX?.renderLine(ctx,line,0,baseY,{
+     fontSize:fontsize,spacing,color:item.color,stroke:item.stroke*unit,strokeColor:item.strokeColor,
+     fontFamily:FONTS[item.font]||state.customFonts[item.font]||FONTS.gothic,
+     weight:item.font==='heavy'?'900':'700',align:item.align,fx:item.fx
+   },{enter:progressIn,exit:progressOut,reveal:item.fx?.reveal||'none',vanish:item.fx?.vanish||'none',elapsed});
+   if(!hasStyled){
+     if(item.fx?.reveal==='write'&&progressIn<1){ctx.save();const left=item.align==='left'?0:item.align==='right'?-width:-width/2;ctx.beginPath();ctx.rect(left-4,baseY-lh*.65,width*progressIn+8,lh*1.3);ctx.clip();}
+     if(item.fx?.reveal==='stagger'&&progressIn<1){ctx.save();const left=item.align==='left'?0:item.align==='right'?-width:-width/2;ctx.beginPath();ctx.rect(left-4,baseY-lh*.65,width*Math.floor(graphemes(line).length*progressIn)/Math.max(1,graphemes(line).length)+8,lh*1.3);ctx.clip();}
+     if(item.fx?.vanish==='erase'&&progressOut>0){ctx.save();const left=item.align==='left'?0:item.align==='right'?-width:-width/2;ctx.beginPath();ctx.rect(left+width*progressOut,baseY-lh*.65,width*(1-progressOut)+5,lh*1.3);ctx.clip();}
+     if(item.stroke>0){ctx.lineWidth=item.stroke*unit;ctx.strokeStyle=item.strokeColor;printSpaced(ctx,line,0,baseY,spacing,'stroke');}
+     ctx.fillStyle=item.color;printSpaced(ctx,line,0,baseY,spacing,'fill');
+     if(item.fx?.reveal==='write'&&progressIn<1)ctx.restore();
+     if(item.fx?.reveal==='stagger'&&progressIn<1)ctx.restore();
+     if(item.fx?.vanish==='erase'&&progressOut>0)ctx.restore();
+   }
  });
  ctx.shadowBlur=0;
  if(editing){let dx=item.align==='left'?0:item.align==='right'?-width:-width/2;ctx.strokeStyle='#eaa4ff';ctx.globalAlpha=1;ctx.lineWidth=Math.max(2,1.5*unit)/Math.max(sc,.05);ctx.setLineDash([9*unit,6*unit]);ctx.strokeRect(dx-8*unit,-height/2-6*unit,width+16*unit,height+12*unit);ctx.setLineDash([]);ctx.fillStyle='#f2c2ff';let r=5*unit;for(let vx of [dx-8*unit,dx+width+8*unit])for(let vy of [-height/2-6*unit,height/2+6*unit]){ctx.beginPath();ctx.arc(vx,vy,r,0,Math.PI*2);ctx.fill();}}
@@ -134,11 +149,51 @@ function renderInspector(){let item=selected();$('settings').hidden=!item;$('noS
  const data={textValue:item.text,fontValue:item.font,sizeValue:item.size,spacingValue:item.spacing,colorValue:item.color,strokeColor:item.strokeColor,strokeValue:item.stroke,shadowValue:item.shadow,alignValue:item.align,xValue:round(item.x*100,2),yValue:round(item.y*100,2),rotateValue:item.rotate,scaleValue:round(item.scale*100,2),opacityValue:round(item.opacity*100),animationValue:item.animation,inValue:item.inDur,outValue:item.outDur,startValue:item.start,endValue:item.end};
  for(let [id,value] of Object.entries(data)){let el=$(id);if(el===document.activeElement)continue;el.value=value;}
  $('opacityLabel').textContent=`${Math.round(item.opacity*100)}%`;
+ renderTextureInspector(item);
  renderKeyframes(item);
 }
 function renderKeyframes(item){let list=$('keyframeList');list.innerHTML='';if(!item.keyframes.length){let span=document.createElement('span');span.className='help';span.textContent='キーフレームはまだありません。';list.append(span);return;}
  [...item.keyframes].sort((a,b)=>a.at-b.at).forEach(k=>{let row=document.createElement('div');row.className='key-row';let text=document.createElement('span');text.textContent=`◇ ${formatTime(item.start+k.at)}  /  X:${round(k.x*100)}  Y:${round(k.y*100)}  回転:${round(k.rotate)}°`;let buttons=document.createElement('div');let jump=document.createElement('button');jump.textContent='↗';jump.title='この時刻へ移動';jump.onclick=()=>setTime(item.start+k.at);let rm=document.createElement('button');rm.textContent='×';rm.title='キーフレームを削除';rm.onclick=()=>{stash();item.keyframes=item.keyframes.filter(p=>p!==k);refresh();};buttons.append(jump,rm);row.append(text,buttons);list.append(row);});}
 const FIELDS={textValue:['text',v=>v],fontValue:['font',v=>v],sizeValue:['size',v=>clamp(Number(v)||12,8,360)],spacingValue:['spacing',v=>clamp(Number(v)||0,-15,80)],colorValue:['color',v=>v],strokeColor:['strokeColor',v=>v],strokeValue:['stroke',v=>clamp(Number(v)||0,0,24)],shadowValue:['shadow',v=>clamp(Number(v)||0,0,60)],alignValue:['align',v=>v],xValue:['x',v=>clamp(Number(v)/100,-1,2)],yValue:['y',v=>clamp(Number(v)/100,-1,2)],rotateValue:['rotate',v=>clamp(Number(v)||0,-1080,1080)],scaleValue:['scale',v=>clamp(Number(v)/100,.05,10)],opacityValue:['opacity',v=>clamp(Number(v)/100,0,1)],animationValue:['animation',v=>v],inValue:['inDur',v=>clamp(Number(v)||0,0,120)],outValue:['outDur',v=>clamp(Number(v)||0,0,120)],startValue:['start',v=>clamp(Number(v)||0,0,state.duration-.1)],endValue:['end',v=>clamp(Number(v)||0,.1,state.duration)]};
+
+const FX_NAMES={
+ shatter:['欠け・ひびの強さ','表面の剥がれ','破片のズレ','亀裂の細かさ'],
+ graphite:['鉛筆の濃淡','芯のざらつき','手書きの揺れ','重ね描きの線']
+};
+function ensureFx(item){
+ if(!item.fx)item.fx={style:'standard',intensity:70,grain:54,irregularity:38,detail:62,seed:1,reveal:'none',vanish:'none'};
+ return item.fx;
+}
+function renderTextureInspector(item){
+ const fx=ensureFx(item);
+ document.querySelectorAll('.type-preset').forEach(b=>{const active=b.dataset.texture===fx.style;b.classList.toggle('active',active);b.setAttribute('aria-pressed',active?'true':'false');});
+ $('textureControls').hidden=fx.style==='standard';
+ const names=FX_NAMES[fx.style]||FX_NAMES.shatter;
+ ['Intensity','Grain','Irregularity','Detail'].forEach((key,index)=>{
+   const id='fx'+key,prop=key.toLowerCase();$(id+'Name').textContent=names[index];$(id+'Label').textContent=Math.round(fx[prop]);
+   if(document.activeElement!==$(id))$(id).value=fx[prop];
+ });
+ if(document.activeElement!==$('fxReveal'))$('fxReveal').value=fx.reveal;
+ if(document.activeElement!==$('fxVanish'))$('fxVanish').value=fx.vanish;
+}
+function bindTexture(){
+ document.querySelectorAll('.type-preset').forEach(button=>button.addEventListener('click',()=>{
+  const item=selected();if(!item)return;const fx=ensureFx(item);if(fx.style===button.dataset.texture)return;
+  stash();fx.style=button.dataset.texture;
+  if(fx.style==='shatter'&&fx.seed===1)fx.seed=241;
+  if(fx.style==='graphite'&&fx.seed===1)fx.seed=917;
+  renderTextureInspector(item);draw();status('文字スタイル：'+fx.style.toUpperCase()+'。MVの動画書き出しにも反映されます。');
+ }));
+ for(const [id,field] of [['fxIntensity','intensity'],['fxGrain','grain'],['fxIrregularity','irregularity'],['fxDetail','detail']]){
+  let saved=false;$(id).addEventListener('focus',()=>saved=false);
+  $(id).addEventListener('input',()=>{let item=selected();if(!item)return;if(!saved){stash();saved=true;}ensureFx(item)[field]=clamp(Number($(id).value),0,100);$(id+'Label').textContent=Math.round(ensureFx(item)[field]);draw();});
+  $(id).addEventListener('change',()=>{saved=false;renderInspector();});$(id).addEventListener('blur',()=>saved=false);
+ }
+ for(const [id,field] of [['fxReveal','reveal'],['fxVanish','vanish']])$(id).addEventListener('change',()=>{
+  const item=selected();if(!item)return;stash();ensureFx(item)[field]=$(id).value;draw();status('出現・消失演出を更新しました。');
+ });
+ $('fxReseed').addEventListener('click',()=>{const item=selected();if(!item)return;stash();ensureFx(item).seed=(Math.random()*2000000000|0)+2;draw();status('新しい文字の傷・筆圧パターンを作りました。');});
+}
 function bindFields(){Object.entries(FIELDS).forEach(([id,[prop,convert]])=>{let element=$(id), saved=false;
  element.addEventListener('focus',()=>{saved=false});
  element.addEventListener('input',()=>{let item=selected();if(!item)return;if(!saved){stash();saved=true;}let value=convert(element.value);item[prop]=value;if(prop==='start'){item.start=Math.min(item.start,item.end-.1);item.keyframes=item.keyframes.filter(k=>k.at<=item.end-item.start);}if(prop==='end'){item.end=Math.max(item.start+.1,item.end);item.keyframes=item.keyframes.filter(k=>k.at<=item.end-item.start);}if(prop==='opacity')$('opacityLabel').textContent=`${Math.round(item.opacity*100)}%`;if(['start','end','text'].includes(prop)){renderTimeline();renderLayers();}draw();});
@@ -163,9 +218,10 @@ function addKeyframe(){let item=selected();if(!item){status('先に文字を選�
  stash();let at=round(state.time-item.start,3);let k={at,x:item.x,y:item.y,rotate:item.rotate,scale:item.scale,opacity:item.opacity};let ix=item.keyframes.findIndex(x=>Math.abs(x.at-at)<.045);if(ix>=0)item.keyframes[ix]=k;else item.keyframes.push(k);refresh();status(`${formatTime(state.time)} にキーフレームを設定しました。`);
 }
 function downloadBlob(blob,name){let link=document.createElement('a'),url=URL.createObjectURL(blob);link.href=url;link.download=name;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),90000);}
-function exportProject(){let payload={app:'Lyrica Studio',version:1,created:new Date().toISOString(),videoName:state.videoFile?.name||null,source:{width:canvas.width,height:canvas.height,duration:state.duration},items:state.items};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'Lyrica-project.json');status('編集プロジェクトを書き出しました。動画ファイル本体は含まれません。');}
+function exportProject(){let payload={app:'Lyrica Studio',version:2,created:new Date().toISOString(),videoName:state.videoFile?.name||null,source:{width:canvas.width,height:canvas.height,duration:state.duration},items:state.items};downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'Lyrica-project.json');status('編集プロジェクトを書き出しました。動画ファイル本体は含まれません。');}
 async function importProject(file){try{let project=JSON.parse(await file.text());if(!Array.isArray(project.items)||project.items.length>5000)throw new Error('プロジェクト形式が正しくありません');
- let clean=project.items.map((obj,i)=>{let d=newItem(String(obj.text||''),0,2);for(let key of Object.keys(d)){if(Object.prototype.hasOwnProperty.call(obj,key)&&key!=='id')d[key]=obj[key];}d.id=uid();d.keyframes=Array.isArray(d.keyframes)?d.keyframes.filter(k=>Number.isFinite(k.at)):[];return d;});stash();state.items=clean;state.selected=clean[0]?.id||null;if(!state.videoFile&&Number.isFinite(project.source?.duration)){state.duration=clamp(project.source.duration,1,36000);sizeCanvas(project.source.width||1280,project.source.height||720);}state.isDemo=false;refresh();status('編集プロジェクトを開きました。元動画も必要なら読み込んでください。');}catch(e){status('プロジェクトの読み込みに失敗：'+e.message);}}
+ let clean=project.items.map((obj,i)=>{let d=newItem(String(obj.text||''),0,2);for(let key of Object.keys(d)){if(Object.prototype.hasOwnProperty.call(obj,key)&&key!=='id')d[key]=obj[key];}d.id=uid();d.keyframes=Array.isArray(d.keyframes)?d.keyframes.filter(k=>Number.isFinite(k.at)&&Number.isFinite(k.x)&&Number.isFinite(k.y)&&Number.isFinite(k.rotate)&&Number.isFinite(k.scale)&&Number.isFinite(k.opacity)).slice(0,200):[];
+ d.fx={style:['standard','shatter','graphite'].includes(d.fx?.style)?d.fx.style:'standard',intensity:clamp(Number(d.fx?.intensity??70),0,100),grain:clamp(Number(d.fx?.grain??54),0,100),irregularity:clamp(Number(d.fx?.irregularity??38),0,100),detail:clamp(Number(d.fx?.detail??62),0,100),seed:Number(d.fx?.seed)||1,reveal:['none','write','stagger','flicker'].includes(d.fx?.reveal)?d.fx.reveal:'none',vanish:['none','erase','scatter'].includes(d.fx?.vanish)?d.fx.vanish:'none'};return d;});stash();state.items=clean;state.selected=clean[0]?.id||null;if(!state.videoFile&&Number.isFinite(project.source?.duration)){state.duration=clamp(project.source.duration,1,36000);sizeCanvas(project.source.width||1280,project.source.height||720);}state.isDemo=false;refresh();status('編集プロジェクトを開きました。元動画も必要なら読み込んでください。');}catch(e){status('プロジェクトの読み込みに失敗：'+e.message);}}
 async function importVideo(file){if(!file||!file.type.startsWith('video/')){status('動画ファイルを選択してください。');return;}video.pause();if(state.videoURL)URL.revokeObjectURL(state.videoURL);state.videoURL=URL.createObjectURL(file);state.videoFile=file;state.playingDemo=false;video.src=state.videoURL;video.load();status('動画を読み込み中...');
  try{await new Promise((resolve,reject)=>{let timer=setTimeout(()=>reject(Error('動画の読み込みがタイムアウトしました')),30000);video.addEventListener('loadedmetadata',()=>{clearTimeout(timer);resolve();},{once:true});video.addEventListener('error',()=>{clearTimeout(timer);reject(Error('この動画形式はブラウザで再生できません'));},{once:true});});if(!Number.isFinite(video.duration)||video.duration<=0)throw Error('動画の長さが取得できません');state.duration=video.duration;state.time=0;sizeCanvas(video.videoWidth,video.videoHeight);$('videoName').textContent=file.name;if(state.isDemo){state.items=[];state.selected=null;state.isDemo=false;}for(let item of state.items){item.start=clamp(item.start,0,Math.max(0,state.duration-.1));item.end=clamp(item.end,item.start+.1,state.duration);}setTime(0);state.history=[];state.future=[];refresh();status('動画を読み込みました。音声は元動画のものをそのまま使用します。');}catch(e){state.videoFile=null;status(e.message);}}
 async function importFont(file){if(!file)return;try{let name=`custom_${Object.keys(state.customFonts).length+1}`;let buffer=await file.arrayBuffer();let font=new FontFace(name,buffer);await font.load();document.fonts.add(font);state.customFonts[name]=`"${name}"`;let o=document.createElement('option');o.value=name;o.textContent=`読込：${file.name}`;$('fontValue').append(o);let item=selected();if(item){stash();item.font=name;}renderInspector();draw();status(`フォントを追加しました：${file.name}（再起動時は再読込が必要です）`);}catch(e){status('フォントが読み込めません：'+e.message);}}
@@ -198,10 +254,10 @@ function openModal(id){$(id).hidden=false;}
 function closeModal(id){$(id).hidden=true;}
 function initialize(){
  // Demo layer lets the app be explored even before loading a local video.
- let a=newItem('この瞬間を、言葉に',.4,3.6);a.y=.46;a.size=84;a.font='mincho';a.animation='pop';a.stroke=2;
- let b=newItem('Let the light find us',4,3.5);b.y=.57;b.font='serif';b.size=63;b.animation='left';b.color='#ffdaea';
+ let a=newItem('この瞬間を、言葉に',.4,3.6);a.y=.46;a.size=84;a.font='mincho';a.animation='pop';a.stroke=2;a.fx={style:'shatter',intensity:75,grain:45,irregularity:35,detail:69,seed:241,reveal:'none',vanish:'scatter'};
+ let b=newItem('Let the light find us',4,3.5);b.y=.57;b.font='serif';b.size=63;b.animation='left';b.color='#ffdaea';b.fx={style:'graphite',intensity:90,grain:70,irregularity:65,detail:75,seed:917,reveal:'write',vanish:'erase'};
  state.items=[a,b];state.selected=a.id;
- bindFields();refresh();$('videoInput').addEventListener('change',e=>{if(e.target.files[0])importVideo(e.target.files[0]);e.target.value='';});$('projectInput').addEventListener('change',e=>{if(e.target.files[0])importProject(e.target.files[0]);e.target.value='';});$('fontInput').addEventListener('change',e=>{if(e.target.files[0])importFont(e.target.files[0]);e.target.value='';});
+ bindFields();bindTexture();refresh();$('videoInput').addEventListener('change',e=>{if(e.target.files[0])importVideo(e.target.files[0]);e.target.value='';});$('projectInput').addEventListener('change',e=>{if(e.target.files[0])importProject(e.target.files[0]);e.target.value='';});$('fontInput').addEventListener('change',e=>{if(e.target.files[0])importFont(e.target.files[0]);e.target.value='';});
  $('addText').onclick=addText;$('addTextMini').onclick=addText;$('duplicate').onclick=duplicate;$('deleteSelected').onclick=deleteSelected;
  $('playBtn').onclick=playPause;$('backStep').onclick=()=>setTime(state.time-.1);$('forwardStep').onclick=()=>setTime(state.time+.1);$('toStart').onclick=()=>setTime(0);$('seek').addEventListener('input',e=>setTime(Number(e.target.value)));
  $('undo').onclick=undo;$('redo').onclick=redo;$('zoomOut').onclick=()=>setZoom(state.zoom-15);$('zoomIn').onclick=()=>setZoom(state.zoom+15);$('saveProject').onclick=exportProject;$('exportVideo').onclick=startExport;$('cancelExport').onclick=()=>{if(state.exporting)state.stopExport?.();else closeModal('exportModal');};$('saveExport').onclick=saveExportToDevice;
